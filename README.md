@@ -1,3 +1,10 @@
+---
+title: DeepScan AI Deepfake Detector
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 
 # 🛡️ DeepScan — AI Deepfake Detection System
 
