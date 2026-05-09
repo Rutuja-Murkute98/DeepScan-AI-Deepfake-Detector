@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DeepScan — AI Deepfake Detector</title>
+<meta name="description" content="Production-grade AI deepfake and synthetic media detection system"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06080d;--surface:#0c0f18;--card:#111520;--card-hover:#161b2a;
+  --border:#1a1f30;--border-hover:#252b40;
+  --accent:#6366f1;--accent-glow:rgba(99,102,241,.25);
+  --green:#10b981;--green-bg:rgba(16,185,129,.1);--green-border:rgba(16,185,129,.3);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);--red-border:rgba(239,68,68,.3);
+  --text:#e8ecf4;--text-secondary:#8892a8;--text-muted:#5a6478;
+  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:14px;--radius-sm:8px;--transition:.2s ease;
+}
+[data-theme="light"]{
+  --bg:#f4f6fb;--surface:#fff;--card:#fff;--card-hover:#f8f9fc;
+  --border:#e2e6ee;--border-hover:#d0d5e0;
+  --text:#1a1d2a;--text-secondary:#5a6478;--text-muted:#8892a8;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;line-height:1.6}
+.wrap{max-width:880px;margin:0 auto;padding:0 20px 80px;position:relative;z-index:1}
+
+/* Grid bg */
+.grid-bg{position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:50px 50px;opacity:.3;pointer-events:none;mask-image:radial-gradient(ellipse 70% 50% at 50% 0%,#000 20%,transparent 100%)}
+
+/* Header */
+header{padding:44px 0 28px;text-align:center;animation:fadeDown .6s ease both}
+.logo-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px}
+.logo-icon{width:50px;height:50px;background:linear-gradient(135deg,var(--accent),var(--green));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 0 30px var(--accent-glow)}
+h1{font-size:clamp(1.8rem,4.5vw,2.8rem);font-weight:800;letter-spacing:-.5px;background:linear-gradient(90deg,var(--text) 40%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tagline{color:var(--text-muted);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+
+/* Theme toggle */
+.theme-btn{position:fixed;top:18px;right:18px;z-index:100;width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.theme-btn:hover{border-color:var(--accent);background:var(--card-hover)}
+
+/* Status */
+.status-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 28px;font-size:.73rem;color:var(--text-muted);animation:fadeDown .8s ease both}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted)}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+.dot.off{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Tabs */
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:calc(var(--radius) + 2px);padding:3px;margin-bottom:22px;animation:fadeUp .4s ease both}
+.tab{flex:1;padding:10px 0;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);font-family:var(--font);font-size:.77rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:var(--transition)}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.tab:hover:not(.active){color:var(--text-secondary);background:rgba(255,255,255,.02)}
+
+/* Drop zone */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:50px 20px;text-align:center;cursor:pointer;transition:border-color var(--transition),background var(--transition);position:relative;animation:fadeUp .5s ease both}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(99,102,241,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:2.6rem;margin-bottom:12px;display:block}
+.drop-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:4px}
+.drop-sub{font-size:.73rem;color:var(--text-muted)}
+
+/* Preview */
+.preview-area{margin-top:16px;display:none}
+.preview-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+.preview-thumb{aspect-ratio:1;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);position:relative;background:var(--surface)}
+.preview-thumb img,.preview-thumb video{width:100%;height:100%;object-fit:cover}
+.thumb-label{position:absolute;inset:0;display:flex;align-items:flex-end;padding:6px;background:linear-gradient(transparent 50%,rgba(0,0,0,.8));font-size:.6rem;color:#fff;word-break:break-all}
+.file-tile{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.file-tile .preview-thumb{border:0;border-radius:0}
+.file-meta{padding:10px;border-top:1px solid var(--border);display:grid;gap:4px}
+.file-name{font-size:.76rem;color:var(--text);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-detail{font-size:.65rem;color:var(--text-muted);font-family:var(--mono);display:flex;gap:8px;flex-wrap:wrap}
+.file-pill{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:2px 7px;background:var(--surface)}
+
+/* Options */
+.options-row{display:flex;align-items:center;gap:16px;margin-top:14px;flex-wrap:wrap}
+.opt-label{display:flex;align-items:center;gap:6px;font-size:.73rem;color:var(--text-muted);cursor:pointer;user-select:none}
+.opt-label input{accent-color:var(--accent);cursor:pointer}
+
+/* Button */
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:18px;padding:15px;background:linear-gradient(135deg,var(--accent),#818cf8);border:none;border-radius:var(--radius);color:#fff;font-family:var(--font);font-size:.92rem;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:opacity var(--transition),transform var(--transition),box-shadow var(--transition);box-shadow:0 4px 20px var(--accent-glow)}
+.btn:hover{opacity:.92;transform:translateY(-2px);box-shadow:0 8px 30px var(--accent-glow)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.analysis-progress{margin-top:20px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;animation:fadeUp .25s ease both}
+.progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.progress-title{font-weight:800;color:var(--text)}
+.progress-sub{font-size:.72rem;color:var(--text-muted)}
+.progress-bar{height:8px;background:var(--surface);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+.progress-fill{height:100%;width:45%;border-radius:999px;background:linear-gradient(90deg,var(--accent),#818cf8,var(--green));animation:progressSlide 1.25s ease-in-out infinite}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.step{display:flex;align-items:center;gap:7px;color:var(--text-muted);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.step-dot{width:9px;height:9px;border-radius:50%;background:var(--border-hover)}
+.step.done{color:var(--green)}
+.step.done .step-dot{background:var(--green)}
+.step.active{color:var(--text)}
+.step.active .step-dot{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+@keyframes progressSlide{0%{transform:translateX(-85%)}50%{transform:translateX(45%)}100%{transform:translateX(170%)}}
+
+/* Results */
+#results{margin-top:24px;display:none;animation:fadeUp .4s ease both}
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;transition:border-color var(--transition)}
+.result-card:hover{border-color:var(--border-hover)}
+.result-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.result-filename{font-size:.75rem;color:var(--text-muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:99px;font-size:.82rem;font-weight:700;letter-spacing:.03em}
+.badge.real{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge.fake{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.result-body{padding:18px}
+.verdict-panel{padding:20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)}
+.verdict-panel.real{background:linear-gradient(135deg,var(--green-bg),transparent 70%)}
+.verdict-panel.fake{background:linear-gradient(135deg,var(--red-bg),transparent 70%)}
+.verdict-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.verdict-word{font-size:clamp(2.2rem,9vw,4.2rem);line-height:.95;font-weight:900;letter-spacing:.04em}
+.verdict-word.real{color:var(--green);text-shadow:0 0 28px rgba(16,185,129,.18)}
+.verdict-word.fake{color:var(--red);text-shadow:0 0 28px rgba(239,68,68,.18)}
+.verdict-sub{margin-top:8px;color:var(--text-secondary);font-size:.82rem;font-weight:600}
+.confidence-box{min-width:170px;background:rgba(0,0,0,.14);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
+[data-theme="light"] .confidence-box{background:rgba(255,255,255,.7)}
+.confidence-label{font-size:.63rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.confidence-value{font-size:1.8rem;line-height:1.1;font-weight:900;margin-top:4px}
+.confidence-track{height:10px;background:var(--surface);border-radius:999px;overflow:hidden;margin-top:10px;border:1px solid var(--border)}
+.confidence-fill{height:100%;border-radius:999px;width:0;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.confidence-fill.real{background:linear-gradient(90deg,#047857,var(--green))}
+.confidence-fill.fake{background:linear-gradient(90deg,#b91c1c,var(--red))}
+.result-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:16px}
+.meta-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;min-width:0}
+.meta-label{font-size:.61rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.meta-value{font-size:.78rem;color:var(--text);font-weight:700;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta-value.mono{font-family:var(--mono);font-weight:500}
+
+/* Prob bars */
+.prob-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.prob-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);width:40px;flex-shrink:0;font-weight:600}
+.prob-track{flex:1;height:7px;background:var(--surface);border-radius:4px;overflow:hidden}
+.prob-fill{height:100%;border-radius:4px;transition:width .8s cubic-bezier(.22,1,.36,1);width:0}
+.prob-fill.real{background:linear-gradient(90deg,#059669,var(--green))}
+.prob-fill.fake{background:linear-gradient(90deg,#dc2626,var(--red))}
+.prob-val{font-size:.72rem;width:42px;text-align:right;color:var(--text);font-family:var(--mono);font-weight:500}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.stat-val{font-size:1.2rem;font-weight:700;color:var(--text)}
+.stat-lbl{font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+
+/* Frame timeline */
+.timeline{margin-top:14px}
+.timeline-lbl{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.timeline-track{display:flex;gap:2px;flex-wrap:wrap}
+.fdot{width:10px;height:10px;border-radius:2px;transition:transform .1s}
+.fdot:hover{transform:scale(1.5);z-index:2;position:relative}
+.fdot.real{background:var(--green)}
+.fdot.fake{background:var(--red)}
+.frame-list{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.frame-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px}
+.frame-item.fake{border-color:var(--red-border);background:var(--red-bg)}
+.frame-item.real{border-color:var(--green-border);background:var(--green-bg)}
+.frame-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.72rem;font-weight:800}
+.frame-meta{margin-top:3px;font-size:.62rem;color:var(--text-muted);font-family:var(--mono)}
+
+/* Heatmap */
+.heatmap-wrap{margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;display:inline-block}
+.heatmap-wrap img{display:block;max-width:224px}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--red);color:#fff;padding:10px 22px;border-radius:99px;font-size:.78rem;font-weight:600;transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:10000;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Animations */
+@keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* Responsive */
+@media(max-width:600px){
+  .result-header{flex-direction:column;align-items:flex-start}
+  .stats{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+
+<div class="wrap">
+  <header>
+    <div class="logo-row"><div class="logo-icon">🛡️</div><h1>DeepScan</h1></div>
+    <p class="tagline">AI-Powered Deepfake & Synthetic Media Detector</p>
+  </header>
+
+  <div class="status-bar"><span class="dot" id="sDot"></span><span id="sTxt">Checking server…</span></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-image" onclick="switchTab('image')">🖼 Image</button>
+    <button class="tab" id="tab-video" onclick="switchTab('video')">🎬 Video</button>
+    <button class="tab" id="tab-batch" onclick="switchTab('batch')">📦 Batch</button>
+  </div>
+
+  <!-- IMAGE -->
+  <div id="panel-image">
+    <div class="drop-zone" id="dz-image">
+      <input type="file" id="file-image" accept="image/*" onchange="handleFiles(this.files,'image')"/>
+      <span class="drop-icon">🖼️</span>
+      <div class="drop-title">Drop an image here</div>
+      <div class="drop-sub">JPG, PNG, WebP — max 200 MB</div>
+    </div>
+    <div class="preview-area" id="pa-image"><div class="preview-grid" id="pg-image"></div></div>
+    <div class="options-row">
+      <label class="opt-label"><input type="checkbox" id="opt-heatmap"/> Grad-CAM Heatmap</label>
+      <label class="opt-label"><input type="checkbox" id="opt-face" checked/> Face Detection</label>
+    </div>
+    <button class="btn" id="btn-image" onclick="analyseImage()" disabled>
+      <span class="spinner" id="sp-image"></span><span id="bt-image">⚡ Analyse Image</span>
+    </button>
+  </div>
+
+  <!-- VIDEO -->
+  <div id="panel-video" style="display:none">
+    <div class="drop-zone" id="dz-video">
+      <input type="file" id="file-video" accept="video/*" onchange="handleFiles(this.files,'video')"/>
+      <span class="drop-icon">🎬</span>
+      <div class="drop-title">Drop a video here</div>
+      <div class="drop-sub">MP4, AVI, MOV, WebM — max 200 MB</div>
+    </div>
+    <div class="preview-area" id="pa-video"><div class="preview-grid" id="pg-video"></div></div>
+    <button class="btn" id="btn-video" onclick="analyseVideo()" disabled>
+      <span class="spinner" id="sp-video"></span><span id="bt-video">⚡ Analyse Video</span>
+    </button>
+  </div>
+
+  <!-- BATCH -->
+  <div id="panel-batch" style="display:none">
+    <div class="drop-zone" id="dz-batch">
+      <input type="file" id="file-batch" accept="image/*" multiple onchange="handleFiles(this.files,'batch')"/>
+      <span class="drop-icon">📦</span>
+      <div class="drop-title">Drop multiple images</div>
+      <div class="drop-sub">Up to 20 images at once</div>
+    </div>
+    <div class="preview-area" id="pa-batch"><div class="preview-grid" id="pg-batch"></div></div>
+    <button class="btn" id="btn-batch" onclick="analyseBatch()" disabled>
+      <span class="spinner" id="sp-batch"></span><span id="bt-batch">⚡ Analyse All</span>
+    </button>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API='';
+let selFiles={image:null,video:null,batch:null};
+
+// Health
+async function checkHealth(){
+  try{
+    const r=await fetch(`${API}/health`);const d=await r.json();
+    const ok=d.status==='ok'&&d.model_loaded;
+    document.getElementById('sDot').className='dot '+(ok?'on':'off');
+    document.getElementById('sTxt').textContent=ok?`Online · ${d.model_type} model · ${d.device}`:'Server online · Model not loaded';
+  }catch{
+    document.getElementById('sDot').className='dot off';
+    document.getElementById('sTxt').textContent='Server offline — run: uvicorn backend.app:app';
+  }
+}
+checkHealth();setInterval(checkHealth,15000);
+
+// Theme
+function toggleTheme(){
+  const h=document.documentElement;
+  const t=h.getAttribute('data-theme')==='dark'?'light':'dark';
+  h.setAttribute('data-theme',t);
+  document.getElementById('themeBtn').textContent=t==='dark'?'🌙':'☀️';
+  localStorage.setItem('theme',t);
+}
+(()=>{const t=localStorage.getItem('theme');if(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'🌙':'☀️';}})();
+
+// Tabs
+function switchTab(t){
+  ['image','video','batch'].forEach(m=>{
+    document.getElementById('panel-'+m).style.display=m===t?'':'none';
+    document.getElementById('tab-'+m).classList.toggle('active',m===t);
+  });
+  document.getElementById('results').style.display='none';
+  document.getElementById('results').innerHTML='';
+}
+
+// Files
+function formatBytes(bytes){
+  if(!bytes)return '0 B';
+  const units=['B','KB','MB','GB'];
+  const i=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),units.length-1);
+  return `${(bytes/Math.pow(1024,i)).toFixed(i?1:0)} ${units[i]}`;
+}
+function shortType(file){
+  return file.type ? file.type.replace('image/','').replace('video/','').toUpperCase() : 'FILE';
+}
+function handleFiles(files,mode){
+  if(!files||!files.length)return;
+  selFiles[mode]=files;
+  const grid=document.getElementById('pg-'+mode);
+  const area=document.getElementById('pa-'+mode);
+  grid.innerHTML='';area.style.display='block';
+  const show=mode==='batch'?files:[files[0]];
+  Array.from(show).slice(0,20).forEach(file=>{
+    const tile=document.createElement('div');tile.className='file-tile';
+    const w=document.createElement('div');w.className='preview-thumb';
+    const url=URL.createObjectURL(file);
+    let el;
+    if(file.type.startsWith('video')){el=document.createElement('video');el.src=url;el.muted=true;el.loop=true;el.autoplay=true;}
+    else{el=document.createElement('img');el.src=url;}
+    const lbl=document.createElement('div');lbl.className='thumb-label';lbl.textContent=file.name;
+    const meta=document.createElement('div');meta.className='file-meta';
+    meta.innerHTML=`<div class="file-name" title="${esc(file.name)}">${esc(file.name)}</div><div class="file-detail"><span class="file-pill">${shortType(file)}</span><span>${formatBytes(file.size)}</span><span>${file.type||'unknown type'}</span></div>`;
+    w.append(el,lbl);tile.append(w,meta);grid.appendChild(tile);
+  });
+  document.getElementById('btn-'+mode).disabled=false;
+}
+
+// Drag & drop
+['image','video','batch'].forEach(m=>{
+  const dz=document.getElementById('dz-'+m);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');handleFiles(e.dataTransfer.files,m);});
+});
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+function setLoading(m,on){
+  document.getElementById('sp-'+m).style.display=on?'block':'none';
+  const names={image:'Image',video:'Video',batch:'All'};
+  document.getElementById('bt-'+m).textContent=on?'Analysing…':`⚡ Analyse ${names[m]}`;
+  document.getElementById('btn-'+m).disabled=on;
+  if(on)showProgress(m,'analyze');
+}
+function showProgress(mode,active='analyze'){
+  const labels={image:'Analyzing image...',video:'Analyzing video...',batch:'Analyzing batch...'};
+  const sub={
+    image:'Validating file, running model inference, and preparing the result.',
+    video:'Extracting frames, analyzing each frame, and building the timeline.',
+    batch:'Validating files, analyzing each image, and preparing summary cards.'
+  };
+  const steps=['upload','validate','analyze','result'];
+  const names={upload:'Upload',validate:'Validate',analyze:'Analyze',result:'Result'};
+  const activeIndex=steps.indexOf(active);
+  const stepHtml=steps.map((s,i)=>{
+    const cls=i<activeIndex?'done':i===activeIndex?'active':'';
+    return `<div class="step ${cls}"><span class="step-dot"></span>${names[s]}</div>`;
+  }).join('');
+  const res=document.getElementById('results');
+  res.style.display='block';
+  res.innerHTML=`<div class="analysis-progress"><div class="progress-head"><div><div class="progress-title">${labels[mode]}</div><div class="progress-sub">${sub[mode]}</div></div><span class="spinner" style="display:block"></span></div><div class="progress-bar"><div class="progress-fill"></div></div><div class="steps">${stepHtml}</div></div>`;
+}
+function badge(label){
+  const icon=label==='fake'?'🔴':'🟢';
+  const txt=label==='fake'?'FAKE / AI-GENERATED':'REAL / AUTHENTIC';
+  return `<div class="badge ${label}">${icon} ${txt}</div>`;
+}
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function verdictBlock(label, confidence, meta={}){
+  const isFake=label==='fake';
+  const word=isFake?'FAKE':'REAL';
+  const sub=isFake?'AI-generated or manipulated media likely':'Authentic media likely';
+  const pct=Math.max(0,Math.min(100,(confidence||0)*100));
+  const model=esc(meta.modelName||meta.modelType||'Model');
+  const latency=meta.latencyMs!==undefined?`${meta.latencyMs}ms`:'--';
+  const faces=meta.faces!==undefined?meta.faces:'--';
+  const file=esc(meta.fileName||'Uploaded file');
+  return `<div class="verdict-panel ${label}">
+    <div class="verdict-top">
+      <div>
+        <div class="verdict-word ${label}">${word}</div>
+        <div class="verdict-sub">${sub}</div>
+      </div>
+      <div class="confidence-box">
+        <div class="confidence-label">Confidence</div>
+        <div class="confidence-value" style="color:var(--${isFake?'red':'green'})">${pct.toFixed(1)}%</div>
+        <div class="confidence-track"><div class="confidence-fill ${label}" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>
+    </div>
+    <div class="result-meta">
+      <div class="meta-item"><div class="meta-label">File</div><div class="meta-value mono" title="${file}">${file}</div></div>
+      <div class="meta-item"><div class="meta-label">Model</div><div class="meta-value" title="${model}">${model}</div></div>
+      <div class="meta-item"><div class="meta-label">Latency</div><div class="meta-value mono">${latency}</div></div>
+      <div class="meta-item"><div class="meta-label">Faces Found</div><div class="meta-value mono">${faces}</div></div>
+    </div>
+  </div>`;
+}
+function bars(pr,pf){
+  return `<div class="prob-row"><div class="prob-lbl">Real</div><div class="prob-track"><div class="prob-fill real" style="width:${(pr*100).toFixed(1)}%"></div></div><div class="prob-val">${(pr*100).toFixed(1)}%</div></div>
+  <div class="prob-row"><div class="prob-lbl">Fake</div><div class="prob-track"><div class="prob-fill fake" style="width:${(pf*100).toFixed(1)}%"></div></div><div class="prob-val">${(pf*100).toFixed(1)}%</div></div>`;
+}
+function thresholdNote(d){
+  const t=d.analysis_details?.threshold;
+  if(typeof t!=='number')return '';
+  return `<div class="stat-lbl" style="margin-top:8px">Fake verdict threshold: ${(t*100).toFixed(0)}%. The label follows this threshold, not whichever bar is higher.</div>`;
+}
+
+// Image
+async function analyseImage(){
+  const files=selFiles.image;if(!files||!files.length)return;
+  const heatmap=document.getElementById('opt-heatmap').checked;
+  const face=document.getElementById('opt-face').checked;
+  const fd=new FormData();fd.append('file',files[0]);
+  setLoading('image',true);
+  try{
+    const r=await fetch(`${API}/predict?heatmap=${heatmap}&face_detection=${face}`,{method:'POST',body:fd});
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||r.statusText);}
+    const d=await r.json();
+    const res=document.getElementById('results');res.style.display='block';
+    let hm='';
+    if(d.heatmap_b64){hm=`<div class="heatmap-wrap"><img src="data:image/png;base64,${d.heatmap_b64}" alt="Grad-CAM"/></div><div class="stat-lbl" style="margin-top:4px">Grad-CAM attention (suspicious regions highlighted)</div>`;}
+    res.innerHTML=`<div class="result-card"><div class="result-header"><span class="result-filename">${files[0].name}</span>${badge(d.label)}</div><div class="result-body">${bars(d.prob_real,d.prob_fake)}${thresholdNote(d)}<div class="stats"><div class="stat"><div class="stat-val">${(d.confidence*100).toFixed(1)}%</div><div class="stat-lbl">Verdict Score</div></div><div class="stat"><div class="stat-val">${d.latency_ms}ms</div><div class="stat-lbl">Latency</div></div><div class="stat"><div class="stat-val">${d.faces_detected}</div><div class="stat-lbl">Faces</div></div><div class="stat"><div class="stat-val">${d.analysis_details?.model_type||'—'}</div><div class="stat-lbl">Model</div></div></div>${hm}</div></div>`;
+    const meta={fileName:files[0].name,modelName:d.analysis_details?.model_name,modelType:d.analysis_details?.model_type,latencyMs:d.latency_ms,faces:d.faces_detected};
+    res.innerHTML=`<div class="result-card"><div class="result-header"><span class="result-filename">${esc(files[0].name)}</span>${badge(d.label)}</div>${verdictBlock(d.label,d.confidence,meta)}<div class="result-body">${bars(d.prob_real,d.prob_fake)}${thresholdNote(d)}${hm}</div></div>`;
+  }catch(err){showToast('Error: '+err.message);}finally{setLoading('image',false);}
+}
+
+// Video
+async function analyseVideo(){
+  const files=selFiles.video;if(!files||!files.length)return;
+  const fd=new FormData();fd.append('file',files[0]);
+  setLoading('video',true);
+  try{
+    const r=await fetch(`${API}/predict/video`,{method:'POST',body:fd});
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||r.statusText);}
+    const d=await r.json();
+    const res=document.getElementById('results');res.style.display='block';
+    const dots=d.frame_results.map(f=>`<div class="fdot ${f.label}" title="Frame ${f.frame_index}: ${f.label} (${(f.prob_fake*100).toFixed(1)}% fake)"></div>`).join('');
+    const fakePct=Math.round((d.fake_frame_count/d.frames_analyzed)*100);
+    const frameCards=d.frame_results.map(f=>`<div class="frame-item ${f.label}"><div class="frame-top"><span>Frame ${f.frame_index+1}</span><span>${f.label.toUpperCase()}</span></div><div class="frame-meta">${(f.prob_fake*100).toFixed(1)}% fake · ${f.faces_detected||0} face(s) · ${f.timestamp_sec}s</div></div>`).join('');
+    res.innerHTML=`<div class="result-card"><div class="result-header"><span class="result-filename">${files[0].name}</span>${badge(d.overall_label)}</div><div class="result-body">${bars(1-d.overall_prob_fake,d.overall_prob_fake)}<div class="stats"><div class="stat"><div class="stat-val">${(d.overall_confidence*100).toFixed(1)}%</div><div class="stat-lbl">Verdict Score</div></div><div class="stat"><div class="stat-val">${d.frames_analyzed}</div><div class="stat-lbl">Frames</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">${d.fake_frame_count}</div><div class="stat-lbl">Fake</div></div><div class="stat"><div class="stat-val" style="color:var(--green)">${d.real_frame_count}</div><div class="stat-lbl">Real</div></div><div class="stat"><div class="stat-val">${fakePct}%</div><div class="stat-lbl">Fake Ratio</div></div><div class="stat"><div class="stat-val">${d.latency_ms}ms</div><div class="stat-lbl">Latency</div></div></div><div class="timeline"><div class="timeline-lbl">Frame-by-frame — 🟢 real · 🔴 fake (hover for details)</div><div class="timeline-track">${dots}</div></div></div></div>`;
+    const videoMeta={fileName:files[0].name,modelName:d.analysis_details?.model_name,modelType:d.analysis_details?.model_type,latencyMs:d.latency_ms,faces:d.frame_results.reduce((sum,f)=>sum+(f.faces_detected||0),0)};
+    res.innerHTML=`<div class="result-card"><div class="result-header"><span class="result-filename">${esc(files[0].name)}</span>${badge(d.overall_label)}</div>${verdictBlock(d.overall_label,d.overall_confidence,videoMeta)}<div class="result-body">${bars(1-d.overall_prob_fake,d.overall_prob_fake)}<div class="stats"><div class="stat"><div class="stat-val">${d.frames_analyzed}</div><div class="stat-lbl">Frames Analyzed</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">${d.fake_frame_count}</div><div class="stat-lbl">Fake Frames</div></div><div class="stat"><div class="stat-val" style="color:var(--green)">${d.real_frame_count}</div><div class="stat-lbl">Real Frames</div></div><div class="stat"><div class="stat-val">${fakePct}%</div><div class="stat-lbl">Fake Ratio</div></div></div><div class="timeline"><div class="timeline-lbl">Timeline-style frame result</div><div class="timeline-track">${dots}</div><div class="frame-list">${frameCards}</div></div></div></div>`;
+  }catch(err){showToast('Error: '+err.message);}finally{setLoading('video',false);}
+}
+
+// Batch
+async function analyseBatch(){
+  const files=selFiles.batch;if(!files||!files.length)return;
+  const fd=new FormData();
+  Array.from(files).slice(0,20).forEach(f=>fd.append('files',f));
+  setLoading('batch',true);
+  try{
+    const r=await fetch(`${API}/predict/batch`,{method:'POST',body:fd});
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||r.statusText);}
+    const d=await r.json();
+    const res=document.getElementById('results');res.style.display='block';
+    const cards=d.results.map((item,i)=>{
+      const fn=files[i]?files[i].name:`File ${i+1}`;
+      return `<div class="result-card"><div class="result-header"><span class="result-filename">${fn}</span>${badge(item.label)}</div><div class="result-body">${bars(item.prob_real,item.prob_fake)}<div class="stats"><div class="stat"><div class="stat-val">${(item.confidence*100).toFixed(1)}%</div><div class="stat-lbl">Verdict Score</div></div></div></div></div>`;
+    }).join('');
+    const fc=d.summary.fake_count;
+    const summary=`<div class="result-card" style="border-color:${fc>0?'var(--red-border)':'var(--green-border)'}"><div class="result-header"><span class="result-filename">Batch Summary</span><span style="font-size:.78rem;color:var(--text-muted)">${d.results.length} files · ${d.total_latency_ms}ms</span></div><div class="result-body"><div class="stats"><div class="stat"><div class="stat-val">${d.results.length}</div><div class="stat-lbl">Total</div></div><div class="stat"><div class="stat-val" style="color:var(--red)">${fc}</div><div class="stat-lbl">Fake</div></div><div class="stat"><div class="stat-val" style="color:var(--green)">${d.summary.real_count}</div><div class="stat-lbl">Real</div></div></div></div></div>`;
+    const strongCards=d.results.map((item,i)=>{
+      const fn=files[i]?files[i].name:`File ${i+1}`;
+      const meta={fileName:fn,modelName:item.analysis_details?.model_name,modelType:item.analysis_details?.model_type,latencyMs:item.latency_ms,faces:item.faces_detected};
+      return `<div class="result-card"><div class="result-header"><span class="result-filename">${esc(fn)}</span>${badge(item.label)}</div>${verdictBlock(item.label,item.confidence,meta)}<div class="result-body">${bars(item.prob_real,item.prob_fake)}${thresholdNote(item)}</div></div>`;
+    }).join('');
+    res.innerHTML=summary+strongCards;
+  }catch(err){showToast('Error: '+err.message);}finally{setLoading('batch',false);}
+}
+</script>
+</body>
+</html>
+

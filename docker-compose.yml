@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  deepscan:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+    environment:
+      - DEVICE=auto
+      - DEBUG=false
+      - MAX_FILE_SIZE_MB=200
+    restart: unless-stopped
+    # Uncomment for GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
