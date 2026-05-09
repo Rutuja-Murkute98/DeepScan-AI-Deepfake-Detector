@@ -1,3 +1,11 @@
+---
+title: DeepScan AI Deepfake Detector
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
+
 # 🛡️ DeepScan — AI Deepfake Detection System
 
 Production-grade deepfake and AI-generated content detection system powered by deep learning.
